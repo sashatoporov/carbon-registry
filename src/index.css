@@ -209,4 +209,41 @@ h3 {
     flex-direction: column;
     align-items: stretch !important;
   }
+
+  .stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    padding: 16px !important;
+    gap: 8px !important;
+    margin-bottom: 24px !important;
+  }
+
+  .market-grid {
+    grid-template-columns: 1fr !important;
+    padding: 0 16px !important;
+  }
+
+  .section-header {
+    padding: 0 16px !important;
+  }
+}
+
+/* ─── Desktop/Base Grids ─── */
+.stats-grid {
+  display: flex;
+  gap: 12px;
+  padding: 24px 32px 0;
+  margin-bottom: 32px;
+}
+
+.market-grid {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 12px;
+  padding: 0 32px;
+}
+
+.section-header {
+  padding: 0 32px;
+  margin-bottom: 12px;
 }

@@ -11,7 +11,7 @@ import { ChevronRight } from 'lucide-react';
 function Section({ id, title, subtitle, children, style, onViewAll }) {
     return (
         <section id={id} style={{ marginBottom: 36, ...style }}>
-            <div style={{ padding: '0 32px', marginBottom: 12, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <div className="section-header" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <div>
                     <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{title}</h2>
                     {subtitle && <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: 2 }}>{subtitle}</p>}
@@ -52,8 +52,8 @@ const CATEGORIES = ['All', 'Forestry', 'Renewables', 'Agriculture', 'Waste', 'Tr
 
 function CategoryFilter({ active, onChange }) {
     return (
-        <div style={{
-            display: 'flex', gap: 6, padding: '0 32px', marginBottom: 20,
+        <div className="section-header" style={{
+            display: 'flex', gap: 6, marginBottom: 20,
             overflowX: 'auto', scrollbarWidth: 'none',
         }}>
             {CATEGORIES.map(cat => {
@@ -204,7 +204,7 @@ export default function Discover() {
             </header>
 
             {/* ─── Hero stats strip ─── */}
-            <div style={{ padding: '24px 32px 0', display: 'flex', gap: 12, marginBottom: 32 }}>
+            <div className="stats-grid">
                 <StatCard label="Total Projects" value={allProjects.length.toLocaleString()} />
                 <StatCard label="Credits Issued" value={fmtBig(totalIssued)} />
                 <StatCard label="Credits Retired" value={fmtBig(totalRetired)} />
@@ -212,12 +212,12 @@ export default function Discover() {
             </div>
 
             {/* ─── Charts section ─── */}
-            <section id="section-charts" style={{ padding: '0 32px', marginBottom: 36 }}>
-                <div style={{ marginBottom: 12 }}>
+            <section id="section-charts" style={{ marginBottom: 36 }}>
+                <div className="section-header">
                     <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Market Overview</h2>
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: 2 }}>Voluntary carbon market at a glance</p>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: 12 }}>
+                <div className="market-grid">
                     <YearlyBarChart projects={allProjects} height={200} />
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                         <DonutChart data={registryDonut} title="By Registry" subtitle="Project count per registry" size={110} />
