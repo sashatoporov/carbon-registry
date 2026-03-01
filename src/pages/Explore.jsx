@@ -1,13 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { useProjects } from '../hooks/useProjects';
-import { Search, Filter } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { ProjectDrawer } from '../components/ProjectDrawer';
+import { ProjectCard } from '../components/ProjectCard';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Explore() {
     const allProjects = useProjects();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterScope, setFilterScope] = useState('');
     const [selectedProject, setSelectedProject] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 100;
 
     const scopes = useMemo(() => {
         return [...new Set(allProjects.map(p => p.scope).filter(Boolean))].sort();
@@ -22,18 +26,35 @@ export default function Explore() {
                 if (!hay.includes(q)) return false;
             }
             return true;
-        }).slice(0, 50); // Just top 50 for quick rendering in explore list initially
+        });
     }, [allProjects, searchTerm, filterScope]);
+
+    const totalPages = Math.ceil(filtered.length / itemsPerPage);
+    const paginated = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return filtered.slice(start, start + itemsPerPage);
+    }, [filtered, currentPage]);
+
+    // Reset to page 1 when filters change
+    React.useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterScope]);
 
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <header className="top-header">
-                <h1 style={{ margin: 0, fontSize: '1.5rem' }}>Explore</h1>
+                <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Explore</h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontFamily: "'IBM Plex Mono', monospace" }}>
+                        {filtered.length} projects found
+                    </span>
+                </div>
             </header>
 
-            <div style={{ padding: '24px 32px', display: 'flex', gap: '16px', alignItems: 'center' }}>
+            {/* Search bar */}
+            <div className="explore-search-container" style={{ padding: '16px 32px', display: 'flex', gap: 12, alignItems: 'center', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-base)', zIndex: 10 }}>
                 <div style={{ flex: 1, position: 'relative' }}>
-                    <Search style={{ position: 'absolute', left: 16, top: 12, color: 'var(--text-tertiary)' }} size={20} />
+                    <Search style={{ position: 'absolute', left: 14, top: 11, color: 'var(--text-tertiary)' }} size={18} />
                     <input
                         type="text"
                         placeholder="Search projects, developers, IDs..."
@@ -41,13 +62,14 @@ export default function Explore() {
                         onChange={e => setSearchTerm(e.target.value)}
                         style={{
                             width: '100%',
-                            background: 'var(--bg-highlight)',
+                            background: 'var(--bg-elevated)',
                             border: '1px solid var(--border-light)',
-                            borderRadius: 'var(--radius-pill)',
-                            padding: '12px 16px 12px 48px',
+                            borderRadius: 0,
+                            padding: '10px 14px 10px 42px',
                             color: 'var(--text-primary)',
-                            fontSize: '1rem',
-                            outline: 'none'
+                            fontSize: '0.875rem',
+                            outline: 'none',
+                            fontFamily: 'inherit',
                         }}
                     />
                 </div>
@@ -55,15 +77,16 @@ export default function Explore() {
                     value={filterScope}
                     onChange={e => setFilterScope(e.target.value)}
                     style={{
-                        background: 'var(--bg-highlight)',
+                        background: 'var(--bg-elevated)',
                         border: '1px solid var(--border-light)',
                         color: 'var(--text-primary)',
-                        padding: '12px 24px',
-                        borderRadius: 'var(--radius-pill)',
-                        fontSize: '1rem',
+                        padding: '10px 16px',
+                        borderRadius: 0,
+                        fontSize: '0.875rem',
                         outline: 'none',
                         appearance: 'none',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
                     }}
                 >
                     <option value="">All Scopes</option>
@@ -71,30 +94,88 @@ export default function Explore() {
                 </select>
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', padding: '0 32px 32px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-                    {filtered.map(p => (
-                        <div key={p.id} style={{
-                            background: 'var(--bg-elevated)',
-                            padding: '16px',
-                            borderRadius: 'var(--radius-md)',
-                            border: '1px solid var(--border-light)',
-                            cursor: 'pointer'
-                        }}
-                            onClick={() => setSelectedProject(p)}
-                            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-highlight)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-elevated)'}
+            {/* Results list */}
+            <div style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+                {paginated.length === 0 && (
+                    <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                        No projects match your search.
+                    </div>
+                )}
+                <AnimatePresence mode="popLayout">
+                    {paginated.map((p, i) => (
+                        <motion.div
+                            key={p.id}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: Math.min(i * 0.005, 0.2), duration: 0.2 }}
                         >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{p.id}</span>
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{p.registry}</span>
-                            </div>
-                            <h3 style={{ fontSize: '1rem', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name || 'Unnamed'}</h3>
-                            <p style={{ fontSize: '0.875rem', color: 'var(--text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.type}</p>
-                        </div>
+                            <ProjectCard project={p} onClick={setSelectedProject} variant="compact" />
+                        </motion.div>
                     ))}
-                </div>
+                </AnimatePresence>
             </div>
+
+            {/* Sticky Pagination Controls */}
+            {totalPages > 1 && (
+                <div style={{
+                    padding: '16px 32px',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: 16,
+                    borderTop: '1px solid var(--border-light)',
+                    background: 'var(--bg-elevated)',
+                    zIndex: 20,
+                    boxShadow: '0 -4px 12px rgba(0,0,0,0.05)'
+                }}>
+                    <button
+                        disabled={currentPage === 1}
+                        onClick={() => {
+                            setCurrentPage(p => Math.max(1, p - 1));
+                            document.querySelector('.main-content')?.scrollTo(0, 0);
+                        }}
+                        style={{
+                            padding: '8px 12px',
+                            background: 'transparent',
+                            border: '1px solid var(--border-medium)',
+                            color: currentPage === 1 ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                            opacity: currentPage === 1 ? 0.5 : 1,
+                            minWidth: 80
+                        }}
+                    >
+                        Prev
+                    </button>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 600, fontFamily: "'IBM Plex Mono', monospace", color: 'var(--text-secondary)' }}>
+                        {currentPage} / {totalPages}
+                    </span>
+                    <button
+                        disabled={currentPage === totalPages}
+                        onClick={() => {
+                            setCurrentPage(p => Math.min(totalPages, p + 1));
+                            document.querySelector('.main-content')?.scrollTo(0, 0);
+                        }}
+                        style={{
+                            padding: '8px 12px',
+                            background: 'transparent',
+                            border: '1px solid var(--border-medium)',
+                            color: currentPage === totalPages ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                            opacity: currentPage === totalPages ? 0.5 : 1,
+                            minWidth: 80
+                        }}
+                    >
+                        Next
+                    </button>
+                </div>
+            )}
+
             {selectedProject && (
                 <ProjectDrawer project={selectedProject} onClose={() => setSelectedProject(null)} />
             )}
