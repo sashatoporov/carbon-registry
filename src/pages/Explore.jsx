@@ -377,13 +377,42 @@ export default function Explore() {
                                 background: 'var(--bg-elevated)',
                                 border: '1px solid var(--border-light)',
                                 borderRadius: 4,
-                                padding: '10px 14px 10px 42px',
+                                padding: '10px 36px 10px 42px', // increased right padding for the icon
                                 color: 'var(--text-primary)',
                                 fontSize: '0.875rem',
                                 outline: 'none',
                                 fontFamily: 'inherit',
                             }}
                         />
+                        <AnimatePresence>
+                            {searchTerm && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    transition={{ duration: 0.15 }}
+                                    onClick={() => setSearchTerm('')}
+                                    style={{
+                                        position: 'absolute',
+                                        right: 12,
+                                        top: '50%',
+                                        marginTop: -11,
+                                        cursor: 'pointer',
+                                        color: 'var(--text-tertiary)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        padding: 4,
+                                        borderRadius: '50%',
+                                        background: 'rgba(255,255,255,0.05)'
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary)'}
+                                >
+                                    <X size={14} />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 </div>
 

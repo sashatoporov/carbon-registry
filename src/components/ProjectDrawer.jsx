@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Maximize2, Minimize2, ExternalLink, Info, Sparkles } from 'lucide-react';
+import { X, Maximize2, Minimize2, ExternalLink, Info, Sparkles, MapPin, AlertTriangle } from 'lucide-react';
 import { Sparkline } from './Charts';
+import ProjectMap from './ProjectMap';
 import sdgMapping from '../data/sdg_mapping.json';
 import { generateProjectStory } from '../utils/generateProjectStory';
 
@@ -341,6 +342,40 @@ export function ProjectDrawer({ project, onClose }) {
                         }}>
                             {/* Column 1: Core Details */}
                             <div>
+                                {/* Controversies & Context */}
+                                {(project.has_controversy || project.public_comment) && (
+                                    <div style={{
+                                        marginBottom: 20,
+                                        padding: '14px 16px',
+                                        borderLeft: '3px solid #ff4d4f',
+                                        background: 'rgba(255, 77, 79, 0.05)',
+                                        borderRadius: '0 6px 6px 0',
+                                    }}>
+                                        <div style={{
+                                            display: 'flex', alignItems: 'center', gap: 6,
+                                            marginBottom: 8,
+                                        }}>
+                                            <AlertTriangle size={14} style={{ color: '#ff4d4f' }} />
+                                            <span style={{
+                                                fontSize: '0.65rem',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.1em',
+                                                fontWeight: 800,
+                                                color: '#ff4d4f',
+                                                fontFamily: "'IBM Plex Mono', monospace",
+                                            }}>Controversies & Context</span>
+                                        </div>
+                                        <div style={{ fontSize: '0.82rem', lineHeight: 1.5, color: 'var(--text-secondary)' }}>
+                                            {project.public_comment && (
+                                                <p style={{ margin: '0 0 8px 0' }}>• This project is currently in a <strong>Public Comment Period</strong> on the registry.</p>
+                                            )}
+                                            {project.has_controversy && (
+                                                <p style={{ margin: 0 }}>• The project description or available registry data contains indicators of potential <strong>grievances or controversies</strong>. Please reviewing the registry documents for full context.</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* AI Project Story */}
                                 {story && (
                                     <div style={{
@@ -391,7 +426,17 @@ export function ProjectDrawer({ project, onClose }) {
                                 <Row label="Region" value={project.region} />
                                 {project.state && <Row label="State" value={project.state} />}
                                 {project.loc && <Row label="Location" value={project.loc} />}
-                                {(project.lat || project.lng) && <Row label="Coordinates" value={`${project.lat || '—'}, ${project.lng || '—'}`} />}
+                                {(project.lat || project.lng) && (
+                                    <>
+                                        <Row label="Coordinates" value={`${project.lat || '—'}, ${project.lng || '—'}`} />
+                                        <div style={{ marginTop: 16 }}>
+                                            <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                <MapPin size={10} /> Project Location
+                                            </div>
+                                            <ProjectMap lat={project.lat} lng={project.lng} height={expanded ? 300 : 200} />
+                                        </div>
+                                    </>
+                                )}
 
                                 <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid var(--border-medium)' }}>
                                     <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-tertiary)', fontWeight: 600, marginBottom: 12 }}>Proponent & Contacts</div>

@@ -73,6 +73,27 @@ def extract_verra_data(details):
         data['lat'] = loc.get('latitude')
         data['lng'] = loc.get('longitude')
     
+    # Description
+    desc = details.get('description', '')
+    if desc:
+        data['desc'] = desc.strip()
+        
+    # Public Comment & Controversy
+    data['public_comment'] = bool(details.get('inPublicCommentPeriod', False))
+    
+    controversy_keywords = ['grievance', 'controversy', 'dispute', 'complaint', 'lawsuit', 'litigation', 'protest']
+    has_controversy = False
+    
+    desc_lower = desc.lower()
+    for word in controversy_keywords:
+        if word in desc_lower:
+            has_controversy = True
+            break
+            
+    # Also check documents if needed, but summary is often enough for prominent issues
+    if has_controversy:
+        data['has_controversy'] = True
+        
     # Proponent and Contacts
     participants = details.get('participationSummaries', [])
     for p in participants:
@@ -93,7 +114,7 @@ def extract_verra_data(details):
             
     return data
 
-def fetch_gold_standard_details(limit=100):
+def fetch_gold_standard_details(limit=200):
     url = f"https://public-api.goldstandard.org/projects?page=1&size={limit}"
     headers = {"User-Agent": "Mozilla/5.0", "Accept": "application/json"}
     try:
@@ -110,49 +131,64 @@ def main():
     projects = load_projects()
     print(f"Loaded {len(projects)} projects")
     
-    # Process Verra
-    print("Processing Verra (VCS)...")
-    verra_processed = 0
-    verra_limit = 50 
-    for p in projects:
-        if verra_processed >= verra_limit: break
-        if p.get('registry') == 'VCS':
+    # Target top 100 projects by volume (cr + ci)
+    # create a list of tuples (project, total_volume, index)
+    sorted_projects = []
+    for i, p in enumerate(projects):
+        vol = p.get('cr', 0) + p.get('ci', 0)
+        sorted_projects.append((p, vol, i))
+        
+    sorted_projects.sort(key=lambda x: x[1], reverse=True)
+    top_100_indices = {item[2] for item in sorted_projects[:150]}
+    
+    print("Processing Top 150 Projects...")
+    
+    # Process GS early as it fetches a bulk list anyway
+    gs_data = fetch_gold_standard_details(limit=200)
+    gs_map = {str(d.get('id')): d for d in gs_data} if gs_data else {}
+    
+    processed_count = 0
+    
+    for i, p in enumerate(projects):
+        if i not in top_100_indices:
+            continue
+            
+        registry = p.get('registry')
+        
+        if registry == 'VCS':
             proj_id = p.get('id')
             if not proj_id: continue
             api_id = proj_id.replace('VCS', '').strip()
             
-            # Skip if already has basic enrichment (simplified check)
-            if p.get('lat') and p.get('proponent'): continue
-
-            print(f"  Enriching VCS{api_id}...")
+            print(f"  Enriching {proj_id}...")
             details = fetch_verra_details(api_id)
             if details:
                 newData = extract_verra_data(details)
                 if newData:
                     p.update(newData)
-            
-            verra_processed += 1
+                    
+            processed_count += 1
             time.sleep(0.5)
-
-    # Process Gold Standard
-    print("Processing Gold Standard (GS)...")
-    gs_data = fetch_gold_standard_details(limit=200)
-    gs_map = {str(d.get('id')): d for d in gs_data}
-    
-    gs_updated = 0
-    for p in projects:
-        if p.get('registry') == 'GOLD':
-            # Project ID usually looks like GS1234 or just 1234
+            
+        elif registry == 'GOLD':
             proj_id = str(p.get('id', '')).replace('GS', '').strip()
             if proj_id in gs_map:
+                print(f"  Enriching GS{proj_id}...")
                 details = gs_map[proj_id]
                 p['proponent'] = details.get('developer') or details.get('project_developer')
-                # Add location if available in the mapping (not always present in summary)
-                # Some GS APIs provide more but this is a start
-                gs_updated += 1
+                desc = details.get('description', '')
+                if desc:
+                    p['desc'] = desc
+                
+                # Check for GS controversies (very basic keyword search in description)
+                controversy_keywords = ['grievance', 'controversy', 'dispute', 'complaint', 'lawsuit', 'litigation', 'protest']
+                if any(w in str(desc).lower() for w in controversy_keywords):
+                    p['has_controversy'] = True
+                    
+            processed_count += 1
 
     save_projects(projects)
-    print(f"Done! Updated projects in {DATA_JS_PATH}")
+    print(f"Done! Enriched {processed_count} top projects in {DATA_JS_PATH}")
 
 if __name__ == "__main__":
     main()
