@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Compass, Search, Leaf, Zap, TrendingUp, Globe, Layers } from 'lucide-react'
+import { Compass, Search, Leaf, Zap, TrendingUp, Globe, Layers, Map as MapIcon, BarChart3 } from 'lucide-react'
 
 export function Sidebar() {
   const location = useLocation()
@@ -9,6 +9,8 @@ export function Sidebar() {
   const mainNav = [
     { path: '/', label: 'Discover', icon: Compass },
     { path: '/explore', label: 'Explore', icon: Search },
+    { path: '/map', label: 'Map', icon: MapIcon },
+    { path: '/data', label: 'Data', icon: BarChart3 },
   ]
 
   const collections = [
@@ -59,16 +61,22 @@ export function Sidebar() {
           <Layers size={14} strokeWidth={2.5} />
         </div>
         <span style={{ fontWeight: 800, fontSize: '1rem', letterSpacing: '-0.02em' }}>
-          Carbon Registry
+          Carbon Explorer
         </span>
       </div>
 
       {/* Main nav */}
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 28 }}>
+      <nav style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
+        marginBottom: 28,
+        width: '100%'
+      }}>
         {mainNav.map(item => (
           <Link key={item.path} to={item.path} style={linkStyle(location.pathname === item.path)}>
             <item.icon size={18} />
-            <span className="nav-label">{item.label}</span>
+            <span className="nav-label" style={{ whiteSpace: 'nowrap' }}>{item.label}</span>
           </Link>
         ))}
       </nav>
@@ -121,7 +129,7 @@ export function Sidebar() {
       {/* Footer */}
       <div className="sidebar-footer" style={{ marginTop: 'auto', padding: '16px 20px', borderTop: '1px solid var(--border-light)' }}>
         <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', fontFamily: "'IBM Plex Mono', monospace", marginBottom: 8 }}>
-          v1.0 · Carbon Project Explorer
+          v1.0 · Carbon Explorer
         </div>
         <a
           href="https://gspp.berkeley.edu/berkeley-carbon-trading-project/offsets-database"

@@ -1,16 +1,50 @@
-# React + Vite
+# Carbon Explorer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An interactive data visualization platform for exploring the voluntary carbon credit market. Built with React, D3.js, and Framer Motion.
 
-Currently, two official plugins are available:
+**[→ Live Demo](https://sashatoporov.github.io/carbon-registry/)**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## About
 
-## React Compiler
+Carbon Explorer provides an analytical lens into the global voluntary carbon offset registry, featuring 10,000+ projects across major registries (Verra/VCS, Gold Standard, ACR, CDM, CAR). The application enables carbon market professionals to discover, explore, and analyze project data through rich interactive charts and a local AI-powered query engine.
 
-The React Compiler is currently not compatible with SWC. See [this issue](https://github.com/vitejs/vite-plugin-react/issues/428) for tracking the progress.
+### Data Source
 
-## Expanding the ESLint configuration
+All project data is sourced from the [Berkeley Voluntary Registry Offsets Database](https://gspp.berkeley.edu/research-and-impact/centers/cepp/projects/berkeley-carbon-trading-project/offsets-database), maintained by the Goldman School of Public Policy at UC Berkeley.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Features
+
+- **Discover** — Market overview with KPIs, top projects by volume, and trending sectors
+- **Explore** — Searchable, filterable project table with detailed project drawer (includes AI-generated project summaries)
+- **Map** — Choropleth world map of credit issuance by country
+- **Data** — 9 analytical charts: market growth, issuance vs retirement, registry share, sector treemap, country rankings, project pipeline, reduction vs removal, top methodologies, and top developers
+- **Collections** — Curated views (Nature-Based, Tech Removals, High Volume, Renewables)
+- **Carbon AI** — Local heuristic query engine for natural-language data questions
+
+## Tech Stack
+
+- **React 19** + **Vite** — fast builds, HMR
+- **D3.js** — all charts are hand-crafted SVG visualizations
+- **Framer Motion** — smooth page transitions, scroll animations
+- **TopoJSON / D3-geo** — world map rendering
+- **GitHub Pages** — static deployment
+
+## Getting Started
+
+```bash
+# Install dependencies
+npm install
+
+# Start dev server
+npm run dev
+
+# Build for production
+npm run build
+
+# Deploy to GitHub Pages
+npm run deploy
+```
+
+## License
+
+MIT

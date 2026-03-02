@@ -1,12 +1,6 @@
 import { motion } from 'framer-motion';
 import { Globe, ExternalLink } from 'lucide-react';
-
-const formatNum = (num) => {
-    if (num == null) return "—";
-    if (num >= 1e6) return (num / 1e6).toFixed(1) + "M";
-    if (num >= 1e3) return (num / 1e3).toFixed(1) + "K";
-    return num.toLocaleString();
-};
+import { formatDate, formatNum } from '../utils/formatters';
 
 export function ProjectCard({ project, onClick, variant = 'default' }) {
     if (!project) return null;
@@ -16,7 +10,7 @@ export function ProjectCard({ project, onClick, variant = 'default' }) {
         return (
             <motion.div
                 whileHover={{ backgroundColor: 'var(--bg-inset)' }}
-                transition={{ duration: 0.1 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
                 onClick={() => onClick?.(project)}
                 style={{
                     display: 'flex',
@@ -26,6 +20,7 @@ export function ProjectCard({ project, onClick, variant = 'default' }) {
                     cursor: 'pointer',
                     borderBottom: '1px solid var(--border-light)',
                     opacity: isCanceled ? 0.5 : 1,
+                    transition: 'background-color 0.2s ease'
                 }}
             >
                 <div style={{
@@ -132,7 +127,7 @@ export function ProjectCard({ project, onClick, variant = 'default' }) {
                 </div>
 
                 <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginBottom: 12 }}>
-                    Registered: {project.dt_reg || '—'}
+                    Registered: {formatDate(project.dt_reg)}
                 </div>
 
                 <div style={{

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useProjects } from '../hooks/useProjects';
 import { ProjectCard } from '../components/ProjectCard';
 import { ProjectDrawer } from '../components/ProjectDrawer';
@@ -102,11 +102,37 @@ function StatCard({ label, value }) {
 /* ─── MAIN PAGE ─── */
 export default function Discover() {
     const allProjects = useProjects();
-    const [selectedProject, setSelectedProject] = useState(null);
     const [activeCategory, setActiveCategory] = useState('All');
 
+    const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const projectId = searchParams.get('project');
+
+    const selectedProject = useMemo(() =>
+        projectId ? allProjects.find(p => p.id === projectId) : null
+        , [projectId, allProjects]);
+
+    const setSelectedProject = (p) => {
+        if (p) searchParams.set('project', p.id);
+        else searchParams.delete('project');
+        setSearchParams(searchParams);
+    };
+
+    const handleViewAll = (params = {}) => {
+        const queryParams = new URLSearchParams(params).toString();
+        const path = queryParams ? `/explore?${queryParams}` : '/explore';
+        navigate(path);
+    };
+
     // Data slices
-    const registered = useMemo(() => allProjects.filter(p => p.status === 'Registered'), [allProjects]);
+    const registered = useMemo(() =>
+        allProjects.filter(p => [
+            'Registered',
+            'Completed',
+            'Gold Standard Certified Project',
+            'Gold Standard Certified Design'
+        ].includes(p.status)),
+        [allProjects]);
 
     const topByCredits = useMemo(() =>
         [...registered].sort((a, b) => (b.ci || 0) - (a.ci || 0)).slice(0, 20),
@@ -140,6 +166,9 @@ export default function Discover() {
         registered.filter(p => p.scope === 'Renewable Energy').sort((a, b) => (b.ci || 0) - (a.ci || 0)).slice(0, 20),
         [registered]
     );
+
+    // ... (skipping some unchanged logic for brevitiy in replace_file_content if possible, 
+    // but I'll replace the block to be safe)
 
     // Category filtered trending
     const categoryFiltered = useMemo(() => {
@@ -190,9 +219,6 @@ export default function Discover() {
         return n.toLocaleString();
     };
 
-    const navigate = useNavigate();
-    const handleViewAll = () => navigate('/explore');
-
     return (
         <div style={{ paddingBottom: 60 }}>
             {/* Sticky header */}
@@ -203,7 +229,7 @@ export default function Discover() {
                 </span>
             </header>
 
-            {/* ─── Hero stats strip ─── */}
+            {/* Hero stats strip */}
             <div className="stats-grid">
                 <StatCard label="Total Projects" value={allProjects.length.toLocaleString()} />
                 <StatCard label="Credits Issued" value={fmtBig(totalIssued)} />
@@ -211,9 +237,9 @@ export default function Discover() {
                 <StatCard label="Registries" value={[...new Set(allProjects.map(p => p.registry))].length} />
             </div>
 
-            {/* ─── Charts section ─── */}
+            {/* Charts section */}
             <section id="section-charts" style={{ marginBottom: 36 }}>
-                <div className="section-header">
+                <div className="section-header" style={{ padding: '0 32px' }}>
                     <h2 style={{ fontSize: '1.15rem', fontWeight: 700 }}>Market Overview</h2>
                     <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: 2 }}>Voluntary carbon market at a glance</p>
                 </div>
@@ -226,12 +252,11 @@ export default function Discover() {
                 </div>
             </section>
 
-            {/* ─── 1. Top projects carousel ─── */}
-            <Section id="section-top" title="Top Projects by Volume" subtitle="Highest total credits issued" onViewAll={handleViewAll}>
+            {/* Sections */}
+            <Section id="section-top" title="Top Projects by Volume" subtitle="Highest total credits issued" onViewAll={() => handleViewAll({ sort: 'ci', dir: 'desc' })}>
                 <Carousel projects={topByCredits} onClick={setSelectedProject} variant="wide" />
             </Section>
 
-            {/* ─── 2. Category-filtered trending ─── */}
             <section style={{ marginBottom: 36 }}>
                 <div style={{ padding: '0 32px', marginBottom: 12, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                     <div>
@@ -240,12 +265,6 @@ export default function Discover() {
                             Browse projects by category
                         </p>
                     </div>
-                    <span
-                        onClick={handleViewAll}
-                        style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 2 }}
-                    >
-                        View all <ChevronRight size={14} />
-                    </span>
                 </div>
 
                 <CategoryFilter active={activeCategory} onChange={setActiveCategory} />
@@ -269,43 +288,34 @@ export default function Discover() {
                             ))}
                         </motion.div>
                     </AnimatePresence>
-                    {categoryFiltered.length === 0 && (
-                        <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
-                            No registered projects in this category.
-                        </div>
-                    )}
                 </div>
             </section>
 
-            {/* ─── 3. Nature-Based carousel ─── */}
-            <Section id="section-nature" title="Nature-Based Solutions" subtitle="Forestry, land use, and conservation" onViewAll={handleViewAll}>
+            <Section id="section-nature" title="Nature-Based Solutions" subtitle="Forestry, land use, and conservation" onViewAll={() => handleViewAll({ scope: 'Forestry & Land Use' })}>
                 <Carousel projects={natureBased} onClick={setSelectedProject} />
             </Section>
 
-            {/* ─── 4. Recently added carousel ─── */}
-            <Section title="Recently Added" subtitle="Latest additions to the registries" onViewAll={handleViewAll}>
+            <Section title="Recently Added" subtitle="Latest additions to the registries" onViewAll={() => handleViewAll({ sort: 'dt_add', dir: 'desc' })}>
                 <Carousel projects={recentlyAdded} onClick={setSelectedProject} />
             </Section>
 
-            {/* ─── 5. Gold Standard carousel ─── */}
-            <Section title="Gold Standard Highlights" subtitle="Top Gold Standard certified projects" onViewAll={handleViewAll}>
+            <Section id="section-gold" title="Gold Standard Highlights" subtitle="High-impact sustainable development projects" onViewAll={() => handleViewAll({ registry: 'GOLD' })}>
                 <Carousel projects={goldStandard} onClick={setSelectedProject} />
             </Section>
 
-            {/* ─── 6. Tech Removals carousel ─── */}
-            <Section id="section-tech" title="Tech & Carbon Removals" subtitle="CCS, biochar, and emerging removal technologies" onViewAll={handleViewAll}>
+            <Section id="section-tech" title="Tech & Carbon Removals" subtitle="CCS, biochar, and emerging removal technologies" onViewAll={() => handleViewAll({ scope: 'Carbon Capture & Storage', type: 'Biochar' })}>
                 <Carousel projects={techRemovals} onClick={setSelectedProject} />
             </Section>
 
-            {/* ─── 7. Renewables carousel ─── */}
-            <Section id="section-renewables" title="Renewable Energy" subtitle="Wind, solar, hydro, and biomass" onViewAll={handleViewAll}>
+            <Section id="section-renewables" title="Renewable Energy" subtitle="Wind, solar, hydro, and biomass" onViewAll={() => handleViewAll({ scope: 'Renewable Energy' })}>
                 <Carousel projects={renewables} onClick={setSelectedProject} />
             </Section>
 
-            {/* Drawer */}
-            {selectedProject && (
-                <ProjectDrawer project={selectedProject} onClose={() => setSelectedProject(null)} />
-            )}
+            <AnimatePresence>
+                {selectedProject && (
+                    <ProjectDrawer project={selectedProject} onClose={() => setSelectedProject(null)} />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

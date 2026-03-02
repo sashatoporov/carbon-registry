@@ -158,7 +158,7 @@ h3 {
     width: 100%;
     height: 64px;
     flex-direction: row;
-    padding: 0 16px;
+    padding: 0;
     border-right: none;
     border-top: 1px solid var(--border-light);
     position: fixed;
@@ -166,7 +166,8 @@ h3 {
     left: 0;
     z-index: 1000;
     overflow-y: hidden;
-    justify-content: space-around;
+    overflow-x: hidden;
+    justify-content: center;
     align-items: center;
   }
 
@@ -246,4 +247,46 @@ h3 {
 .section-header {
   padding: 0 32px;
   margin-bottom: 12px;
+}
+
+/* ─── Data Page ─── */
+.data-kpi-strip {
+  display: flex;
+  gap: 10px;
+  padding: 24px 32px 0;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.data-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  padding: 0 32px 32px;
+}
+
+.data-card-wide {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 768px) {
+  .data-kpi-strip {
+    padding: 16px 16px 0;
+    gap: 8px;
+  }
+
+  .data-kpi-strip>div {
+    min-width: calc(50% - 4px) !important;
+    flex: unset !important;
+  }
+
+  .data-grid {
+    grid-template-columns: 1fr;
+    padding: 0 16px 32px;
+    gap: 12px;
+  }
+
+  .data-card-wide {
+    grid-column: 1;
+  }
 }

@@ -34,7 +34,7 @@ for _, row in df_main.iterrows():
     enrichment[prj_id] = {
         'web': clean_val(row['Project Website']),
         'docs_url': clean_val(row['Registry Documents']),
-        'owner': clean_val(row['Project Owner ']),
+        'proponent': clean_val(row['Project Owner ']),
         'oper': clean_val(row['Offset Project Operator ']),
         'dt_list': clean_date(row['Project Listed']),
         'dt_reg': clean_date(row['Project Registered ']),
@@ -94,7 +94,7 @@ for p in projects:
     prj_id = p.get('id')
     if prj_id in enrichment:
         e = enrichment[prj_id]
-        for key in ['web', 'docs_url', 'owner', 'oper', 'dt_list', 'dt_reg', 'desig']:
+        for key in ['web', 'docs_url', 'proponent', 'oper', 'dt_list', 'dt_reg', 'desig']:
             if e.get(key):
                 p[key] = e[key]
         updated_count += 1

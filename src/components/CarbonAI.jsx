@@ -8,13 +8,21 @@ const formatNum = (num) => num ? num.toLocaleString() : "0";
 export function CarbonAI() {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([
-        { role: 'assistant', text: 'Hello. I am Carbon AI. I can analyze the registry data locally. Ask me about nature-based projects, registries, or total issuances.' }
+        { role: 'assistant', text: 'Hello! I\'m **Carbon AI** — your local data analyst for this registry.', chips: ['overview', 'top 5 projects', 'compare registries', 'retirement rate', 'top countries'] }
     ]);
     const [inputStr, setInputStr] = useState('');
     const [isTyping, setIsTyping] = useState(false);
 
     const allProjects = useProjects();
     const messagesEndRef = useRef(null);
+
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -25,57 +33,231 @@ export function CarbonAI() {
     }, [messages, isTyping]);
 
     const handleQuery = (query) => {
-        const q = query.toLowerCase();
+        const q = query.toLowerCase().trim();
+        const projects = allProjects;
 
-        // Simple Heuristic Engine
-        let response = "I couldn't find specific data matching that query. Try asking about 'total verra projects', 'nature based issuing', or 'gold standard'.";
+        if (!projects.length) {
+            setMessages(prev => [...prev, { role: 'assistant', text: "Data is still loading. Please try again in a moment." }]);
+            setIsTyping(false);
+            return;
+        }
 
-        if (q.includes('how many') || q.includes('count')) {
-            if (q.includes('verra') || q.includes('vcs')) {
-                const count = allProjects.filter(p => p.registry === 'VCS').length;
-                response = `There are exactly **${formatNum(count)} Verra (VCS)** projects in the registry.`;
-            } else if (q.includes('gold') || q.includes('gs')) {
-                const count = allProjects.filter(p => p.registry === 'GOLD').length;
-                response = `I found **${formatNum(count)} Gold Standard** projects.`;
-            } else if (q.includes('nature') || q.includes('forestry')) {
-                const count = allProjects.filter(p => p.scope === 'Forestry & Land Use').length;
-                response = `There are **${formatNum(count)} Nature-Based** (Forestry & Land Use) projects.`;
-            } else {
-                response = `There are a total of **${formatNum(allProjects.length)}** projects across all registries.`;
+        let response = null;
+        let fallbackChips = null;
+
+        // ── Helper functions ──
+        const fmt = (n) => n ? n.toLocaleString() : '0';
+        const fmtBig = (n) => {
+            if (!n) return '0';
+            if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+            if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+            if (n >= 1e3) return (n / 1e3).toFixed(0) + 'K';
+            return n.toLocaleString();
+        };
+
+        const countryMatch = (name) => projects.filter(p => p.country && p.country.toLowerCase().includes(name));
+        const scopeMatch = (name) => projects.filter(p => p.scope && p.scope.toLowerCase().includes(name));
+        const registryMatch = (name) => projects.filter(p => p.registry && p.registry.toLowerCase() === name);
+
+        // ── 1. Overview / Summary ──
+        if (q.match(/^(hi|hello|hey|overview|summary|tell me about|what is this|what do you know)/)) {
+            const totalProjects = projects.length;
+            const totalIssued = projects.reduce((s, p) => s + (p.ci || 0), 0);
+            const totalRetired = projects.reduce((s, p) => s + (p.cr || 0), 0);
+            const regs = [...new Set(projects.map(p => p.registry).filter(Boolean))];
+            const countries = [...new Set(projects.map(p => p.country).filter(Boolean))];
+            response = `The registry contains **${fmt(totalProjects)}** projects across **${regs.length}** registries (${regs.join(', ')}) spanning **${countries.length}** countries. Total credits issued: **${fmtBig(totalIssued)}**. Total retired: **${fmtBig(totalRetired)}** (${Math.round(totalRetired / totalIssued * 100)}% retirement rate).`;
+        }
+
+        // ── 2. Registry queries ──
+        else if (q.match(/what\s+(are\s+the\s+)?registries|which registries|list.*registries/)) {
+            const regs = [...new Set(projects.map(p => p.registry).filter(Boolean))];
+            const regCounts = regs.map(r => ({ name: r, count: projects.filter(p => p.registry === r).length }))
+                .sort((a, b) => b.count - a.count);
+            response = `There are **${regs.length}** registries: ${regCounts.map(r => `**${r.name}** (${fmt(r.count)})`).join(', ')}.`;
+        }
+
+        // ── 3. How many / Count queries ──
+        else if (q.match(/how many|count|number of/) || q.match(/^total projects/)) {
+            // Country-specific count
+            const countryWords = ['india', 'brazil', 'china', 'indonesia', 'kenya', 'united states', 'colombia', 'peru', 'mexico', 'turkey', 'vietnam', 'thailand', 'cambodia', 'ethiopia', 'uganda', 'guatemala', 'honduras', 'nepal', 'bangladesh', 'myanmar', 'ghana', 'argentina', 'chile', 'south africa', 'philippines', 'pakistan', 'nigeria', 'tanzania', 'mozambique', 'malawi', 'rwanda', 'dr congo', 'drc', 'laos', 'madagascar', 'zambia', 'zimbabwe', 'dominican republic', 'nicaragua', 'panama', 'costa rica', 'uruguay', 'ecuador', 'bolivia', 'paraguay'];
+            const matchedCountry = countryWords.find(c => q.includes(c));
+
+            if (matchedCountry) {
+                const matched = countryMatch(matchedCountry === 'drc' ? 'congo' : matchedCountry);
+                const issued = matched.reduce((s, p) => s + (p.ci || 0), 0);
+                response = `There are **${fmt(matched.length)}** projects in **${matched[0]?.country || matchedCountry}**, with a total of **${fmtBig(issued)}** credits issued.`;
+            }
+            else if (q.match(/verra|vcs/)) {
+                const count = projects.filter(p => p.registry === 'VCS').length;
+                response = `There are **${fmt(count)} Verra (VCS)** projects in the registry.`;
+            }
+            else if (q.match(/gold\s?standard|^gs$/)) {
+                const count = projects.filter(p => p.registry === 'GOLD').length;
+                response = `There are **${fmt(count)} Gold Standard** projects.`;
+            }
+            else if (q.match(/acr/)) {
+                const count = projects.filter(p => p.registry === 'ACR').length;
+                response = `There are **${fmt(count)} ACR** projects.`;
+            }
+            else if (q.match(/cdm|clean development/)) {
+                const count = projects.filter(p => p.registry === 'CDM').length;
+                response = `There are **${fmt(count)} CDM** projects.`;
+            }
+            else if (q.match(/nature|forest|land use/)) {
+                const count = scopeMatch('forestry').length;
+                response = `There are **${fmt(count)} Forestry & Land Use** (nature-based) projects.`;
+            }
+            else if (q.match(/renewable|energy|wind|solar/)) {
+                const count = scopeMatch('renewable').length;
+                response = `There are **${fmt(count)} Renewable Energy** projects.`;
+            }
+            else if (q.match(/waste/)) {
+                const count = scopeMatch('waste').length;
+                response = `There are **${fmt(count)} Waste Management** projects.`;
+            }
+            else if (q.match(/agri/)) {
+                const count = scopeMatch('agriculture').length;
+                response = `There are **${fmt(count)} Agriculture** projects.`;
+            }
+            else if (q.match(/active|registered/)) {
+                const count = projects.filter(p => p.status === 'Registered').length;
+                response = `There are **${fmt(count)}** projects with "Registered" (active) status.`;
+            }
+            else if (q.match(/cancel/)) {
+                const count = projects.filter(p => p.status === 'Canceled' || p.status === 'Cancelled').length;
+                response = `There are **${fmt(count)}** canceled projects.`;
+            }
+            else if (q.match(/complet/)) {
+                const count = projects.filter(p => p.status === 'Completed').length;
+                response = `There are **${fmt(count)}** completed projects.`;
+            }
+            else {
+                response = `There are **${fmt(projects.length)}** projects total across all registries.`;
             }
         }
-        else if (q.includes('total') && (q.includes('issued') || q.includes('issuance') || q.includes('credits'))) {
-            const active = allProjects.filter(p => p.status !== 'Canceled');
-            if (q.includes('nature')) {
-                const total = active.filter(p => p.scope === 'Forestry & Land Use').reduce((sum, p) => sum + (p.ci || 0), 0);
-                response = `Nature-based projects have issued a total of **${formatNum(total)}** credits.`;
+
+        // ── 4. Total issued / retired / credits ──
+        else if (q.match(/(total|all).*(issued|issuance|credits|retired|retirement)/)) {
+            if (q.includes('retired') || q.includes('retirement')) {
+                const total = projects.reduce((s, p) => s + (p.cr || 0), 0);
+                response = `A total of **${fmtBig(total)}** credits have been retired across all projects.`;
             } else {
-                const total = active.reduce((sum, p) => sum + (p.ci || 0), 0);
-                response = `Globally, **${formatNum(total)}** credits have been issued across active projects.`;
+                const total = projects.reduce((s, p) => s + (p.ci || 0), 0);
+                response = `A total of **${fmtBig(total)}** credits have been issued across all projects.`;
             }
         }
-        else if (q.includes('what') && q.includes('registries')) {
-            const regs = [...new Set(allProjects.map(p => p.registry))].filter(Boolean);
-            response = `The database contains projects from: **${regs.join(', ')}**.`;
+
+        // ── 5. Top / Largest projects ──
+        else if (q.match(/top|largest|biggest|most credits|highest/)) {
+            const n = parseInt((q.match(/\d+/) || [5])[0]) || 5;
+            const limit = Math.min(n, 10);
+            const sorted = [...projects].filter(p => p.ci > 0).sort((a, b) => (b.ci || 0) - (a.ci || 0)).slice(0, limit);
+            const list = sorted.map((p, i) => `${i + 1}. **${p.name}** (${p.registry}) — ${fmtBig(p.ci)} credits`).join('\n');
+            response = `**Top ${limit} projects by credits issued:**\n${list}`;
         }
 
-        setMessages(prev => [...prev, { role: 'assistant', text: response }]);
+        // ── 6. Country-specific (without "how many") ──
+        else if (q.match(/projects?\s+(in|from)\s+\w+/) || q.match(/\w+\s+projects?$/)) {
+            const countryWords2 = ['india', 'brazil', 'china', 'indonesia', 'kenya', 'united states', 'usa', 'colombia', 'peru', 'mexico', 'turkey', 'vietnam', 'thailand', 'cambodia', 'ethiopia', 'uganda'];
+            const matchedCountry2 = countryWords2.find(c => q.includes(c));
+            if (matchedCountry2) {
+                const matched = countryMatch(matchedCountry2 === 'usa' ? 'united states' : matchedCountry2);
+                const issued = matched.reduce((s, p) => s + (p.ci || 0), 0);
+                const topP = [...matched].sort((a, b) => (b.ci || 0) - (a.ci || 0)).slice(0, 3);
+                const topList = topP.map(p => `**${p.name}** (${fmtBig(p.ci)})`).join(', ');
+                response = `**${matched[0]?.country || matchedCountry2}** has **${fmt(matched.length)}** projects with **${fmtBig(issued)}** total credits issued. Top projects: ${topList}.`;
+            }
+        }
+
+        // ── 7. Retirement rate ──
+        else if (q.match(/retirement\s*rate|retire.*percent|%.*retire/)) {
+            const totalIssued = projects.reduce((s, p) => s + (p.ci || 0), 0);
+            const totalRetired = projects.reduce((s, p) => s + (p.cr || 0), 0);
+            const pct = Math.round(totalRetired / totalIssued * 100);
+            response = `The overall retirement rate is **${pct}%** — **${fmtBig(totalRetired)}** credits retired out of **${fmtBig(totalIssued)}** issued.`;
+        }
+
+        // ── 8. Compare registries ──
+        else if (q.match(/compare|vs|versus|difference between/)) {
+            const regs = [...new Set(projects.map(p => p.registry).filter(Boolean))];
+            const stats = regs.map(r => {
+                const rp = projects.filter(p => p.registry === r);
+                return { name: r, count: rp.length, issued: rp.reduce((s, p) => s + (p.ci || 0), 0) };
+            }).sort((a, b) => b.issued - a.issued);
+            const table = stats.map(r => `**${r.name}**: ${fmt(r.count)} projects, ${fmtBig(r.issued)} issued`).join('\n');
+            response = `**Registry comparison:**\n${table}`;
+        }
+
+        // ── 9. Scope / Sector breakdown ──
+        else if (q.match(/scope|sector|breakdown|categories|types of projects/)) {
+            const scopes = {};
+            projects.forEach(p => { if (p.scope) scopes[p.scope] = (scopes[p.scope] || 0) + 1; });
+            const sorted = Object.entries(scopes).sort((a, b) => b[1] - a[1]).slice(0, 8);
+            const list = sorted.map(([s, c]) => `**${s}**: ${fmt(c)}`).join('\n');
+            response = `**Top sectors by project count:**\n${list}`;
+        }
+
+        // ── 10. REDD / specific type ──
+        else if (q.match(/redd|afforestation|cookstove|wind|solar|hydro|biogas|methane/)) {
+            const typeWord = q.match(/(redd|afforestation|cookstove|wind|solar|hydro|biogas|methane)/)[1];
+            const matched = projects.filter(p => (p.type && p.type.toLowerCase().includes(typeWord)) || (p.scope && p.scope.toLowerCase().includes(typeWord)));
+            const issued = matched.reduce((s, p) => s + (p.ci || 0), 0);
+            response = `Found **${fmt(matched.length)}** projects matching "${typeWord}" with **${fmtBig(issued)}** total credits issued.`;
+        }
+
+        // ── 11. Developer queries ──
+        else if (q.match(/develop(er|ed)\s+by|who develop/)) {
+            const devWord = q.replace(/.*develop(er|ed)\s+(by\s+)?/i, '').trim();
+            if (devWord.length > 2) {
+                const matched = projects.filter(p => p.dev && typeof p.dev === 'string' && p.dev.toLowerCase().includes(devWord));
+                if (matched.length > 0) {
+                    response = `Found **${fmt(matched.length)}** projects developed by "${matched[0].dev}". Total credits: **${fmtBig(matched.reduce((s, p) => s + (p.ci || 0), 0))}**.`;
+                } else {
+                    response = `No projects found with developer matching "${devWord}".`;
+                }
+            }
+        }
+
+        // ── 12. Reduction vs Removal ──
+        else if (q.match(/reduction\s*(vs|versus|or|and)\s*removal|removal\s*(vs|versus|or)\s*reduction/)) {
+            const reductions = projects.filter(p => p.rr === 'Reduction');
+            const removals = projects.filter(p => p.rr && p.rr.toLowerCase().includes('removal'));
+            const mixed = projects.filter(p => p.rr === 'Mixed');
+            response = `**Reduction vs Removal:**\n**Reduction**: ${fmt(reductions.length)} projects (${fmtBig(reductions.reduce((s, p) => s + (p.ci || 0), 0))} credits)\n**Removal**: ${fmt(removals.length)} projects (${fmtBig(removals.reduce((s, p) => s + (p.ci || 0), 0))} credits)\n**Mixed**: ${fmt(mixed.length)} projects`;
+        }
+
+        // ── 13. Top countries ──
+        else if (q.match(/top countries|which countries|country breakdown|countries with most/)) {
+            const countries = {};
+            projects.forEach(p => { if (p.country) countries[p.country] = (countries[p.country] || 0) + 1; });
+            const sorted = Object.entries(countries).sort((a, b) => b[1] - a[1]).slice(0, 10);
+            const list = sorted.map(([c, n], i) => `${i + 1}. **${c}**: ${fmt(n)} projects`).join('\n');
+            response = `**Top 10 countries by project count:**\n${list}`;
+        }
+
+        // ── Fallback ──
+        if (!response) {
+            response = "I couldn't match that query. Try one of these:";
+            fallbackChips = ['overview', 'how many projects in India', 'top 5 projects', 'retirement rate', 'compare registries', 'sector breakdown', 'reduction vs removal'];
+        }
+
+        setMessages(prev => [...prev, { role: 'assistant', text: response, chips: fallbackChips }]);
         setIsTyping(false);
     };
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!inputStr.trim()) return;
-
-        const userMsg = inputStr.trim();
-        setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    const sendQuery = (query) => {
+        setMessages(prev => [...prev, { role: 'user', text: query }]);
         setInputStr('');
         setIsTyping(true);
+        setTimeout(() => handleQuery(query), 500 + Math.random() * 300);
+    };
 
-        // Simulate network delay for effect
-        setTimeout(() => {
-            handleQuery(userMsg);
-        }, 600 + Math.random() * 400);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!inputStr.trim() || isTyping) return;
+        sendQuery(inputStr.trim());
     };
 
     return (
@@ -87,8 +269,8 @@ export function CarbonAI() {
                 whileTap={{ scale: 0.95 }}
                 style={{
                     position: 'fixed',
-                    bottom: '32px',
-                    right: '32px',
+                    bottom: isMobile ? '90px' : '32px',
+                    right: isMobile ? '16px' : '32px',
                     width: '56px',
                     height: '56px',
                     borderRadius: '50%',
@@ -114,10 +296,10 @@ export function CarbonAI() {
                         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                         style={{
                             position: 'fixed',
-                            bottom: '100px',
-                            right: '32px',
-                            width: '380px',
-                            height: '500px',
+                            bottom: isMobile ? '90px' : '100px',
+                            right: isMobile ? '16px' : '32px',
+                            width: isMobile ? 'calc(100% - 32px)' : '380px',
+                            height: isMobile ? 'min(500px, calc(100% - 110px))' : '500px',
                             background: 'var(--bg-elevated)',
                             borderRadius: 'var(--radius-xl)',
                             boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
@@ -159,8 +341,31 @@ export function CarbonAI() {
                                     fontSize: '0.9rem',
                                     lineHeight: 1.5
                                 }}>
-                                    {/* Basic raw markdown bold parser just for effect */}
-                                    <span dangerouslySetInnerHTML={{ __html: msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
+                                    <span dangerouslySetInnerHTML={{ __html: msg.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>') }} />
+                                    {msg.chips && msg.chips.length > 0 && (
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                                            {msg.chips.map(chip => (
+                                                <button
+                                                    key={chip}
+                                                    onClick={() => !isTyping && sendQuery(chip)}
+                                                    style={{
+                                                        padding: '4px 10px',
+                                                        fontSize: '0.72rem',
+                                                        fontFamily: "'IBM Plex Mono', monospace",
+                                                        background: 'var(--bg-base)',
+                                                        border: '1px solid var(--border-light)',
+                                                        borderRadius: 'var(--radius-pill)',
+                                                        color: 'var(--text-secondary)',
+                                                        cursor: isTyping ? 'default' : 'pointer',
+                                                        transition: 'all 0.15s',
+                                                        opacity: isTyping ? 0.5 : 1,
+                                                    }}
+                                                    onMouseEnter={e => { if (!isTyping) { e.target.style.background = 'var(--text-primary)'; e.target.style.color = 'var(--bg-base)'; } }}
+                                                    onMouseLeave={e => { e.target.style.background = 'var(--bg-base)'; e.target.style.color = 'var(--text-secondary)'; }}
+                                                >{chip}</button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                             {isTyping && (
