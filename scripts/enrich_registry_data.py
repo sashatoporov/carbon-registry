@@ -131,17 +131,31 @@ def main():
     projects = load_projects()
     print(f"Loaded {len(projects)} projects")
     
-    # Target top 100 projects by volume (cr + ci)
-    # create a list of tuples (project, total_volume, index)
+    # Target top 150 projects by volume (cr + ci)
     sorted_projects = []
     for i, p in enumerate(projects):
         vol = p.get('cr', 0) + p.get('ci', 0)
         sorted_projects.append((p, vol, i))
         
     sorted_projects.sort(key=lambda x: x[1], reverse=True)
-    top_100_indices = {item[2] for item in sorted_projects[:150]}
+    top_indices = {item[2] for item in sorted_projects[:150]}
     
-    print("Processing Top 150 Projects...")
+    # Also target the 100 newest Verra projects (by dt_reg or dt_list)
+    vcs_projects = []
+    for item in sorted_projects:
+        p, vol, i = item
+        if p.get('registry') == 'VCS':
+            date_str = str(p.get('dt_reg') or p.get('dt_list') or '')
+            if date_str != 'NaT' and date_str.strip():
+                vcs_projects.append((date_str, i))
+                
+    vcs_projects.sort(key=lambda x: x[0], reverse=True)
+    newest_vcs_indices = {item[1] for item in vcs_projects[:100]}
+    
+    # Combine target indices
+    target_indices = top_indices.union(newest_vcs_indices)
+    
+    print(f"Processing {len(target_indices)} Projects (Top 150 + Newest 100 VCS)...")
     
     # Process GS early as it fetches a bulk list anyway
     gs_data = fetch_gold_standard_details(limit=200)
@@ -150,7 +164,7 @@ def main():
     processed_count = 0
     
     for i, p in enumerate(projects):
-        if i not in top_100_indices:
+        if i not in target_indices:
             continue
             
         registry = p.get('registry')

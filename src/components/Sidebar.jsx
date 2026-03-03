@@ -128,8 +128,11 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="sidebar-footer" style={{ marginTop: 'auto', padding: '16px 20px', borderTop: '1px solid var(--border-light)' }}>
-        <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', fontFamily: "'IBM Plex Mono', monospace", marginBottom: 8 }}>
+        <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', fontFamily: "'IBM Plex Mono', monospace", marginBottom: 2 }}>
           v1.0 · Carbon Explorer
+        </div>
+        <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', marginBottom: 8 }}>
+          by <span style={{ color: 'var(--text-secondary)' }}>Alexander Toporov</span>
         </div>
         <a
           href="https://gspp.berkeley.edu/berkeley-carbon-trading-project/offsets-database"
