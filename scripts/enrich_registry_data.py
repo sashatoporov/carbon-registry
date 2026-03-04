@@ -127,82 +127,69 @@ def fetch_gold_standard_details(limit=200):
         pass
     return []
 
+def fetch_verra_details_with_retry(project_id, retries=3, delay=2):
+    for attempt in range(retries):
+        url = f"https://registry.verra.org/uiapi/resource/resourceSummary/{project_id}"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        try:
+            response = requests.get(url, headers=headers, timeout=15)
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 429:
+                wait = delay * (2 ** attempt)
+                print(f"    Rate limited. Waiting {wait}s...")
+                time.sleep(wait)
+            else:
+                break
+        except Exception as e:
+            wait = delay * (2 ** attempt)
+            print(f"    Error ({e}). Retrying in {wait}s...")
+            time.sleep(wait)
+    return None
+
 def main():
     projects = load_projects()
     print(f"Loaded {len(projects)} projects")
-    
-    # Target top 150 projects by volume (cr + ci)
-    sorted_projects = []
-    for i, p in enumerate(projects):
-        vol = p.get('cr', 0) + p.get('ci', 0)
-        sorted_projects.append((p, vol, i))
-        
-    sorted_projects.sort(key=lambda x: x[1], reverse=True)
-    top_indices = {item[2] for item in sorted_projects[:150]}
-    
-    # Also target the 100 newest Verra projects (by dt_reg or dt_list)
-    vcs_projects = []
-    for item in sorted_projects:
-        p, vol, i = item
-        if p.get('registry') == 'VCS':
-            date_str = str(p.get('dt_reg') or p.get('dt_list') or '')
-            if date_str != 'NaT' and date_str.strip():
-                vcs_projects.append((date_str, i))
-                
-    vcs_projects.sort(key=lambda x: x[0], reverse=True)
-    newest_vcs_indices = {item[1] for item in vcs_projects[:100]}
-    
-    # Combine target indices
-    target_indices = top_indices.union(newest_vcs_indices)
-    
-    print(f"Processing {len(target_indices)} Projects (Top 150 + Newest 100 VCS)...")
-    
-    # Process GS early as it fetches a bulk list anyway
-    gs_data = fetch_gold_standard_details(limit=200)
-    gs_map = {str(d.get('id')): d for d in gs_data} if gs_data else {}
-    
+
+    # Target ALL VCS projects
+    vcs_indices = [i for i, p in enumerate(projects) if p.get('registry') == 'VCS']
+
+    # Resume: skip already enriched (have a 'desc' field)
+    to_enrich = [i for i in vcs_indices if not projects[i].get('desc')]
+    already_done = len(vcs_indices) - len(to_enrich)
+
+    print(f"Total VCS projects: {len(vcs_indices)}")
+    print(f"Already enriched (skipping): {already_done}")
+    print(f"Remaining to enrich: {len(to_enrich)}")
+
     processed_count = 0
-    
-    for i, p in enumerate(projects):
-        if i not in target_indices:
+    SAVE_EVERY = 50
+
+    for batch_pos, i in enumerate(to_enrich):
+        p = projects[i]
+        proj_id = p.get('id', '')
+        api_id = proj_id.replace('VCS', '').strip()
+        if not api_id:
             continue
-            
-        registry = p.get('registry')
-        
-        if registry == 'VCS':
-            proj_id = p.get('id')
-            if not proj_id: continue
-            api_id = proj_id.replace('VCS', '').strip()
-            
-            print(f"  Enriching {proj_id}...")
-            details = fetch_verra_details(api_id)
-            if details:
-                newData = extract_verra_data(details)
-                if newData:
-                    p.update(newData)
-                    
-            processed_count += 1
-            time.sleep(0.5)
-            
-        elif registry == 'GOLD':
-            proj_id = str(p.get('id', '')).replace('GS', '').strip()
-            if proj_id in gs_map:
-                print(f"  Enriching GS{proj_id}...")
-                details = gs_map[proj_id]
-                p['proponent'] = details.get('developer') or details.get('project_developer')
-                desc = details.get('description', '')
-                if desc:
-                    p['desc'] = desc
-                
-                # Check for GS controversies (very basic keyword search in description)
-                controversy_keywords = ['grievance', 'controversy', 'dispute', 'complaint', 'lawsuit', 'litigation', 'protest']
-                if any(w in str(desc).lower() for w in controversy_keywords):
-                    p['has_controversy'] = True
-                    
-            processed_count += 1
+
+        print(f"  [{batch_pos + 1}/{len(to_enrich)}] Enriching {proj_id}...")
+        details = fetch_verra_details_with_retry(api_id)
+        if details:
+            newData = extract_verra_data(details)
+            if newData:
+                p.update(newData)
+
+        processed_count += 1
+
+        # Save progress every SAVE_EVERY projects so we can resume if interrupted
+        if processed_count % SAVE_EVERY == 0:
+            print(f"  Saving progress at {processed_count} enriched...")
+            save_projects(projects)
+
+        time.sleep(0.5)
 
     save_projects(projects)
-    print(f"Done! Enriched {processed_count} top projects in {DATA_JS_PATH}")
+    print(f"Done! Enriched {processed_count} VCS projects in {DATA_JS_PATH}")
 
 if __name__ == "__main__":
     main()
